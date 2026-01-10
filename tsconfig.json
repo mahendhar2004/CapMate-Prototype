@@ -4,27 +4,62 @@
     "strict": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["*"],
-      "@app/*": ["app/*"],
-      "@components/*": ["app/components/*"],
-      "@screens/*": ["app/screens/*"],
-      "@navigation/*": ["app/navigation/*"],
-      "@hooks/*": ["app/hooks/*"],
-      "@context/*": ["app/context/*"],
-      "@services/*": ["app/services/*"],
-      "@utils/*": ["app/utils/*"],
-      "@constants/*": ["app/constants/*"],
-      "@theme/*": ["app/theme/*"],
-      "@types/*": ["app/types/*"],
-      "@features/*": ["app/features/*"],
-      "@mock/*": ["mock/*"],
-      "@config/*": ["config/*"],
-      "@assets/*": ["assets/*"]
+      "@/*": [
+        "*"
+      ],
+      "@app/*": [
+        "app/*"
+      ],
+      "@components/*": [
+        "app/components/*"
+      ],
+      "@screens/*": [
+        "app/screens/*"
+      ],
+      "@navigation/*": [
+        "app/navigation/*"
+      ],
+      "@hooks/*": [
+        "app/hooks/*"
+      ],
+      "@context/*": [
+        "app/context/*"
+      ],
+      "@services/*": [
+        "app/services/*"
+      ],
+      "@utils/*": [
+        "app/utils/*"
+      ],
+      "@constants/*": [
+        "app/constants/*"
+      ],
+      "@theme/*": [
+        "app/theme/*"
+      ],
+      "@types/*": [
+        "app/types/*"
+      ],
+      "@features/*": [
+        "app/features/*"
+      ],
+      "@mock/*": [
+        "mock/*"
+      ],
+      "@config/*": [
+        "config/*"
+      ],
+      "@assets/*": [
+        "assets/*"
+      ]
     },
     "resolveJsonModule": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true
   },
-  "include": ["**/*.ts", "**/*.tsx", ".expo/types/**/*.ts", "expo-env.d.ts"]
+  "include": [
+    "**/*.ts",
+    "**/*.tsx"
+  ]
 }
