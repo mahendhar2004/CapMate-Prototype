@@ -7,6 +7,7 @@ import React from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider } from '@context/AuthContext';
 import { ProductProvider } from '@context/ProductContext';
+import { ToastProvider } from '@context/ToastContext';
 import RootNavigation from '@navigation/index';
 
 /**
@@ -15,17 +16,20 @@ import RootNavigation from '@navigation/index';
  *
  * Provider hierarchy:
  * 1. SafeAreaProvider - Safe area insets
- * 2. AuthProvider - Authentication state
- * 3. ProductProvider - Product listings state
+ * 2. ToastProvider - Global toast notifications
+ * 3. AuthProvider - Authentication state
+ * 4. ProductProvider - Product listings state
  */
 export default function App() {
   return (
     <SafeAreaProvider>
-      <AuthProvider>
-        <ProductProvider>
-          <RootNavigation />
-        </ProductProvider>
-      </AuthProvider>
+      <ToastProvider>
+        <AuthProvider>
+          <ProductProvider>
+            <RootNavigation />
+          </ProductProvider>
+        </AuthProvider>
+      </ToastProvider>
     </SafeAreaProvider>
   );
 }

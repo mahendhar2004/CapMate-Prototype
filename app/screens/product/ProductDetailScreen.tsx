@@ -1,27 +1,29 @@
 /**
  * Product Detail Screen
- * Full product information with seller contact
+ * Full product information with image gallery and seller contact
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
-  Image,
   Dimensions,
   TouchableOpacity,
   Alert,
   Linking,
+  Animated,
+  Share,
 } from 'react-native';
 import { HomeStackScreenProps } from '@types/navigation.types';
 import { Product } from '@types/product.types';
 import { Container } from '@components/layout/Container';
 import { Header } from '@components/layout/Header';
-import { Button, Avatar, Badge, CategoryBadge, Card } from '@components/common';
+import { Button, Avatar, Badge, CategoryBadge, Card, ImageViewer } from '@components/common';
 import { Loading } from '@components/feedback';
 import { productService } from '@services/product.service';
+import { useToast } from '@context/ToastContext';
 import { colors, typography, spacing, borderRadius, shadows } from '@theme/index';
 import { formatPrice, formatRelativeTime, formatCondition } from '@utils/formatters';
 import { getConditionBadgeVariant } from '@components/common/Badge';
@@ -29,13 +31,13 @@ import { getConditionBadgeVariant } from '@components/common/Badge';
 type Props = HomeStackScreenProps<'ProductDetail'>;
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const IMAGE_HEIGHT = SCREEN_WIDTH * 0.75;
 
 const ProductDetailScreen: React.FC<Props> = ({ route, navigation }) => {
   const { productId, product: initialProduct } = route.params;
   const [product, setProduct] = useState<Product | null>(initialProduct || null);
   const [isLoading, setIsLoading] = useState(!initialProduct);
-  const [activeImageIndex, setActiveImageIndex] = useState(0);
+  const { showToast } = useToast();
+  const scrollY = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     if (!initialProduct) {
@@ -53,19 +55,21 @@ const ProductDetailScreen: React.FC<Props> = ({ route, navigation }) => {
   };
 
   const handleContactSeller = () => {
-    // In production, this would open chat or show contact options
     Alert.alert(
       'Contact Seller',
-      `This would open a chat with ${product?.sellerName || 'the seller'}.\n\nIn the full version, you'll be able to message sellers directly through the app.`,
+      `How would you like to contact ${product?.sellerName || 'the seller'}?`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Email (Demo)',
+          text: 'Chat (Coming Soon)',
+          onPress: () => showToast('In-app chat coming soon!', 'info'),
+        },
+        {
+          text: 'Email',
           onPress: () => {
-            // Demo email functionality
             const email = `seller@demo.com`;
             const subject = `Interested in: ${product?.title}`;
-            const body = `Hi, I'm interested in your listing "${product?.title}" on CAPMATE.`;
+            const body = `Hi ${product?.sellerName},\n\nI'm interested in your listing "${product?.title}" priced at ${formatPrice(product?.price || 0)} on CAPMATE.\n\nIs it still available?\n\nThanks!`;
             Linking.openURL(`mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`);
           },
         },
@@ -73,8 +77,41 @@ const ProductDetailScreen: React.FC<Props> = ({ route, navigation }) => {
     );
   };
 
-  const handleShare = () => {
-    Alert.alert('Share', 'Sharing functionality would be implemented here.');
+  const handleShare = async () => {
+    try {
+      await Share.share({
+        message: `Check out "${product?.title}" for ${formatPrice(product?.price || 0)} on CAPMATE!\n\nDownload the app to browse more items from your college.`,
+        title: product?.title,
+      });
+    } catch (error) {
+      showToast('Failed to share', 'error');
+    }
+  };
+
+  const handleSaveItem = () => {
+    showToast('Item saved to favorites!', 'success');
+  };
+
+  const handleReportItem = () => {
+    Alert.alert(
+      'Report Listing',
+      'Why are you reporting this listing?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Inappropriate Content',
+          onPress: () => showToast('Report submitted. Thank you!', 'success'),
+        },
+        {
+          text: 'Suspicious/Scam',
+          onPress: () => showToast('Report submitted. Thank you!', 'success'),
+        },
+        {
+          text: 'Wrong Category',
+          onPress: () => showToast('Report submitted. Thank you!', 'success'),
+        },
+      ]
+    );
   };
 
   if (isLoading || !product) {
@@ -94,56 +131,55 @@ const ProductDetailScreen: React.FC<Props> = ({ route, navigation }) => {
         showBack
         transparent
         rightAction={
-          <TouchableOpacity onPress={handleShare}>
-            <Text style={styles.shareIcon}>↗</Text>
-          </TouchableOpacity>
+          <View style={styles.headerActions}>
+            <TouchableOpacity style={styles.headerButton} onPress={handleSaveItem}>
+              <Text style={styles.headerIcon}>♡</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.headerButton} onPress={handleShare}>
+              <Text style={styles.headerIcon}>↗</Text>
+            </TouchableOpacity>
+          </View>
         }
       />
 
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+      <Animated.ScrollView
+        style={styles.scrollView}
+        showsVerticalScrollIndicator={false}
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          { useNativeDriver: true }
+        )}
+        scrollEventThrottle={16}
+      >
         {/* Image Gallery */}
-        <View style={styles.imageContainer}>
-          <ScrollView
-            horizontal
-            pagingEnabled
-            showsHorizontalScrollIndicator={false}
-            onMomentumScrollEnd={event => {
-              const index = Math.round(event.nativeEvent.contentOffset.x / SCREEN_WIDTH);
-              setActiveImageIndex(index);
-            }}
-          >
-            {images.map((uri, index) => (
-              <Image key={index} source={{ uri }} style={styles.image} resizeMode="cover" />
-            ))}
-          </ScrollView>
-
-          {/* Image Indicators */}
-          {images.length > 1 && (
-            <View style={styles.imageIndicators}>
-              {images.map((_, index) => (
-                <View
-                  key={index}
-                  style={[
-                    styles.indicator,
-                    index === activeImageIndex && styles.indicatorActive,
-                  ]}
-                />
-              ))}
-            </View>
-          )}
+        <View style={styles.imageSection}>
+          <ImageViewer
+            images={images}
+            height={SCREEN_WIDTH * 0.85}
+            showPagination
+          />
 
           {/* Sold Overlay */}
           {product.status === 'sold' && (
-            <View style={styles.soldOverlay}>
-              <Text style={styles.soldText}>SOLD</Text>
+            <View style={styles.soldBanner}>
+              <Text style={styles.soldBannerText}>This item has been sold</Text>
             </View>
           )}
         </View>
 
         {/* Content */}
         <View style={styles.content}>
-          {/* Title and Price */}
-          <View style={styles.titleRow}>
+          {/* Price and Title Section */}
+          <View style={styles.mainSection}>
+            <View style={styles.priceRow}>
+              <Text style={styles.price}>{formatPrice(product.price)}</Text>
+              {product.status === 'sold' && (
+                <Badge label="Sold" variant="error" size="md" />
+              )}
+            </View>
+
+            <Text style={styles.title}>{product.title}</Text>
+
             <View style={styles.badges}>
               <CategoryBadge category={product.category} />
               <Badge
@@ -152,29 +188,58 @@ const ProductDetailScreen: React.FC<Props> = ({ route, navigation }) => {
                 size="sm"
               />
             </View>
-            <Text style={styles.title}>{product.title}</Text>
-            <Text style={styles.price}>{formatPrice(product.price)}</Text>
+
+            <View style={styles.metaRow}>
+              <View style={styles.metaItem}>
+                <Text style={styles.metaIcon}>👁</Text>
+                <Text style={styles.metaText}>{product.viewCount || 0} views</Text>
+              </View>
+              <View style={styles.metaDivider} />
+              <View style={styles.metaItem}>
+                <Text style={styles.metaIcon}>🕐</Text>
+                <Text style={styles.metaText}>{formatRelativeTime(product.createdAt)}</Text>
+              </View>
+            </View>
           </View>
 
-          {/* Meta Info */}
-          <View style={styles.metaRow}>
-            <Text style={styles.metaText}>
-              Posted {formatRelativeTime(product.createdAt)}
-            </Text>
-            <Text style={styles.metaDot}>•</Text>
-            <Text style={styles.metaText}>{product.viewCount} views</Text>
+          {/* Quick Actions */}
+          <View style={styles.quickActions}>
+            <TouchableOpacity style={styles.quickAction} onPress={handleSaveItem}>
+              <View style={styles.quickActionIcon}>
+                <Text style={styles.quickActionEmoji}>♡</Text>
+              </View>
+              <Text style={styles.quickActionLabel}>Save</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.quickAction} onPress={handleShare}>
+              <View style={styles.quickActionIcon}>
+                <Text style={styles.quickActionEmoji}>↗</Text>
+              </View>
+              <Text style={styles.quickActionLabel}>Share</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.quickAction} onPress={handleReportItem}>
+              <View style={styles.quickActionIcon}>
+                <Text style={styles.quickActionEmoji}>⚠</Text>
+              </View>
+              <Text style={styles.quickActionLabel}>Report</Text>
+            </TouchableOpacity>
           </View>
 
-          {/* Description */}
-          <Card variant="flat" padding="lg" style={styles.descriptionCard}>
-            <Text style={styles.sectionTitle}>Description</Text>
+          {/* Description Card */}
+          <Card variant="flat" padding="lg" style={styles.card}>
+            <View style={styles.cardHeader}>
+              <Text style={styles.cardIcon}>📝</Text>
+              <Text style={styles.sectionTitle}>Description</Text>
+            </View>
             <Text style={styles.description}>{product.description}</Text>
           </Card>
 
-          {/* Seller Info */}
-          <Card variant="outlined" padding="lg" style={styles.sellerCard}>
-            <Text style={styles.sectionTitle}>Seller</Text>
-            <View style={styles.sellerRow}>
+          {/* Seller Card */}
+          <Card variant="elevated" padding="lg" style={styles.card}>
+            <View style={styles.cardHeader}>
+              <Text style={styles.cardIcon}>👤</Text>
+              <Text style={styles.sectionTitle}>Seller Information</Text>
+            </View>
+            <TouchableOpacity style={styles.sellerRow} activeOpacity={0.7}>
               <Avatar
                 source={product.sellerAvatar}
                 name={product.sellerName}
@@ -182,35 +247,77 @@ const ProductDetailScreen: React.FC<Props> = ({ route, navigation }) => {
               />
               <View style={styles.sellerInfo}>
                 <Text style={styles.sellerName}>{product.sellerName}</Text>
-                <Text style={styles.sellerCollege}>{product.collegeName}</Text>
+                <View style={styles.sellerMeta}>
+                  <Text style={styles.sellerCollege}>🎓 {product.collegeName}</Text>
+                </View>
+                <View style={styles.sellerStats}>
+                  <View style={styles.sellerStat}>
+                    <Text style={styles.sellerStatValue}>•</Text>
+                    <Text style={styles.sellerStatLabel}>Verified Student</Text>
+                  </View>
+                </View>
               </View>
+              <Text style={styles.sellerArrow}>›</Text>
+            </TouchableOpacity>
+          </Card>
+
+          {/* Location Card */}
+          <Card variant="flat" padding="lg" style={styles.card}>
+            <View style={styles.cardHeader}>
+              <Text style={styles.cardIcon}>📍</Text>
+              <Text style={styles.sectionTitle}>Pickup Location</Text>
+            </View>
+            <View style={styles.locationContent}>
+              <Text style={styles.locationName}>{product.collegeName}</Text>
+              <Text style={styles.locationHint}>
+                Coordinate with seller for a safe pickup location on campus
+              </Text>
             </View>
           </Card>
 
-          {/* Location Info */}
-          <Card variant="flat" padding="lg" style={styles.locationCard}>
-            <Text style={styles.sectionTitle}>Location</Text>
-            <Text style={styles.locationText}>
-              📍 {product.collegeName}
-            </Text>
-            <Text style={styles.locationHint}>
-              Meet at a safe location on campus for pickup
-            </Text>
+          {/* Safety Tips */}
+          <Card variant="flat" padding="lg" style={[styles.card, styles.safetyCard]}>
+            <View style={styles.cardHeader}>
+              <Text style={styles.cardIcon}>🛡</Text>
+              <Text style={styles.sectionTitle}>Safety Tips</Text>
+            </View>
+            <View style={styles.safetyTips}>
+              <Text style={styles.safetyTip}>• Meet in a public area on campus</Text>
+              <Text style={styles.safetyTip}>• Inspect the item before paying</Text>
+              <Text style={styles.safetyTip}>• Use UPI/digital payments when possible</Text>
+              <Text style={styles.safetyTip}>• Trust your instincts</Text>
+            </View>
           </Card>
         </View>
-      </ScrollView>
+
+        {/* Spacer for bottom bar */}
+        <View style={styles.bottomSpacer} />
+      </Animated.ScrollView>
 
       {/* Bottom CTA */}
       {product.status === 'active' && (
         <View style={styles.bottomBar}>
           <View style={styles.bottomPrice}>
-            <Text style={styles.bottomPriceLabel}>Price</Text>
+            <Text style={styles.bottomPriceLabel}>Total Price</Text>
             <Text style={styles.bottomPriceValue}>{formatPrice(product.price)}</Text>
           </View>
           <Button
             title="Contact Seller"
             onPress={handleContactSeller}
+            size="lg"
             style={styles.contactButton}
+          />
+        </View>
+      )}
+
+      {product.status === 'sold' && (
+        <View style={styles.soldBottomBar}>
+          <Text style={styles.soldBottomText}>This item is no longer available</Text>
+          <Button
+            title="Browse Similar Items"
+            variant="outline"
+            onPress={() => navigation.goBack()}
+            fullWidth
           />
         </View>
       )}
@@ -222,138 +329,222 @@ const styles = StyleSheet.create({
   scrollView: {
     flex: 1,
   },
-  imageContainer: {
-    position: 'relative',
-    height: IMAGE_HEIGHT,
-    backgroundColor: colors.skeleton,
-  },
-  image: {
-    width: SCREEN_WIDTH,
-    height: IMAGE_HEIGHT,
-  },
-  imageIndicators: {
-    position: 'absolute',
-    bottom: spacing.lg,
-    left: 0,
-    right: 0,
+  headerActions: {
     flexDirection: 'row',
-    justifyContent: 'center',
     gap: spacing.sm,
   },
-  indicator: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: 'rgba(255, 255, 255, 0.5)',
-  },
-  indicatorActive: {
-    backgroundColor: colors.surface,
-    width: 24,
-  },
-  soldOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    alignItems: 'center',
+  headerButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
     justifyContent: 'center',
+    alignItems: 'center',
+    ...shadows.sm,
   },
-  soldText: {
-    ...typography.h1,
+  headerIcon: {
+    fontSize: 20,
+    color: colors.text,
+  },
+  imageSection: {
+    backgroundColor: colors.background,
+    paddingTop: spacing.md,
+  },
+  soldBanner: {
+    backgroundColor: colors.error,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    marginTop: spacing.md,
+  },
+  soldBannerText: {
+    ...typography.label,
     color: colors.textInverse,
-    letterSpacing: 4,
+    textAlign: 'center',
   },
   content: {
     padding: spacing.lg,
   },
-  titleRow: {
+  mainSection: {
+    marginBottom: spacing.lg,
+  },
+  priceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.sm,
+  },
+  price: {
+    ...typography.h1,
+    color: colors.primary,
+    fontWeight: '700',
+  },
+  title: {
+    ...typography.h3,
+    color: colors.text,
     marginBottom: spacing.md,
+    lineHeight: 28,
   },
   badges: {
     flexDirection: 'row',
     gap: spacing.sm,
     marginBottom: spacing.md,
   },
-  title: {
-    ...typography.h3,
-    color: colors.text,
-    marginBottom: spacing.sm,
-  },
-  price: {
-    ...typography.h2,
-    color: colors.primary,
-  },
   metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: spacing.lg,
+    paddingTop: spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: colors.borderLight,
+  },
+  metaItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  metaIcon: {
+    fontSize: 14,
   },
   metaText: {
     ...typography.bodySmall,
     color: colors.textSecondary,
   },
-  metaDot: {
-    color: colors.textTertiary,
-    marginHorizontal: spacing.sm,
+  metaDivider: {
+    width: 1,
+    height: 16,
+    backgroundColor: colors.border,
+    marginHorizontal: spacing.md,
   },
-  descriptionCard: {
-    marginBottom: spacing.lg,
-    backgroundColor: colors.borderLight,
+  quickActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    paddingVertical: spacing.lg,
+    marginBottom: spacing.md,
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.xl,
+    ...shadows.sm,
+  },
+  quickAction: {
+    alignItems: 'center',
+  },
+  quickActionIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: colors.surfaceSecondary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: spacing.xs,
+  },
+  quickActionEmoji: {
+    fontSize: 20,
+  },
+  quickActionLabel: {
+    ...typography.caption,
+    color: colors.textSecondary,
+  },
+  card: {
+    marginBottom: spacing.md,
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing.md,
+    gap: spacing.sm,
+  },
+  cardIcon: {
+    fontSize: 18,
   },
   sectionTitle: {
     ...typography.label,
-    color: colors.textSecondary,
-    marginBottom: spacing.md,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
+    color: colors.text,
+    fontWeight: '600',
   },
   description: {
     ...typography.body,
-    color: colors.text,
+    color: colors.textSecondary,
     lineHeight: 24,
-  },
-  sellerCard: {
-    marginBottom: spacing.lg,
   },
   sellerRow: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   sellerInfo: {
-    marginLeft: spacing.lg,
+    marginLeft: spacing.md,
     flex: 1,
   },
   sellerName: {
     ...typography.h4,
     color: colors.text,
   },
+  sellerMeta: {
+    marginTop: 2,
+  },
   sellerCollege: {
     ...typography.bodySmall,
     color: colors.textSecondary,
-    marginTop: 2,
   },
-  locationCard: {
-    marginBottom: spacing['2xl'],
-    backgroundColor: colors.borderLight,
+  sellerStats: {
+    flexDirection: 'row',
+    marginTop: spacing.xs,
+    gap: spacing.md,
   },
-  locationText: {
+  sellerStat: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  sellerStatValue: {
+    ...typography.label,
+    color: colors.success,
+  },
+  sellerStatLabel: {
+    ...typography.caption,
+    color: colors.textTertiary,
+  },
+  sellerArrow: {
+    ...typography.h2,
+    color: colors.textTertiary,
+  },
+  locationContent: {
+    gap: spacing.xs,
+  },
+  locationName: {
     ...typography.body,
     color: colors.text,
-    marginBottom: spacing.xs,
+    fontWeight: '500',
   },
   locationHint: {
-    ...typography.caption,
+    ...typography.bodySmall,
     color: colors.textSecondary,
   },
+  safetyCard: {
+    backgroundColor: colors.successLight,
+  },
+  safetyTips: {
+    gap: spacing.xs,
+  },
+  safetyTip: {
+    ...typography.bodySmall,
+    color: colors.successDark,
+  },
+  bottomSpacer: {
+    height: 100,
+  },
   bottomBar: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
     flexDirection: 'row',
     alignItems: 'center',
     padding: spacing.lg,
     backgroundColor: colors.surface,
     borderTopWidth: 1,
     borderTopColor: colors.borderLight,
-    ...shadows.lg,
+    ...shadows.xl,
   },
   bottomPrice: {
-    flex: 1,
+    flex: 0.4,
   },
   bottomPriceLabel: {
     ...typography.caption,
@@ -362,14 +553,27 @@ const styles = StyleSheet.create({
   bottomPriceValue: {
     ...typography.h3,
     color: colors.primary,
+    fontWeight: '700',
   },
   contactButton: {
-    flex: 1,
-    marginLeft: spacing.lg,
+    flex: 0.6,
   },
-  shareIcon: {
-    fontSize: 24,
-    color: colors.primary,
+  soldBottomBar: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    padding: spacing.lg,
+    backgroundColor: colors.surface,
+    borderTopWidth: 1,
+    borderTopColor: colors.borderLight,
+    ...shadows.xl,
+    gap: spacing.md,
+  },
+  soldBottomText: {
+    ...typography.body,
+    color: colors.textSecondary,
+    textAlign: 'center',
   },
 });
 

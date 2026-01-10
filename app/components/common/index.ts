@@ -17,3 +17,7 @@ export { Avatar } from './Avatar';
 export type { AvatarSize } from './Avatar';
 
 export { ProductCard } from './ProductCard';
+
+export { ImageViewer } from './ImageViewer';
+
+export { BottomSheet } from './BottomSheet';

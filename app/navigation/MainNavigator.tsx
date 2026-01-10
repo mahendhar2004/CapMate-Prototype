@@ -32,6 +32,7 @@ import EditListingScreen from '@screens/listing/EditListingScreen';
 
 // Profile Stack Screens
 import ProfileMainScreen from '@screens/profile/ProfileMainScreen';
+import EditProfileScreen from '@screens/profile/EditProfileScreen';
 
 // Stack Navigators
 const HomeStack = createNativeStackNavigator<HomeStackParamList>();
@@ -92,6 +93,7 @@ const ProfileStackNavigator: React.FC = () => (
     }}
   >
     <ProfileStack.Screen name="ProfileMain" component={ProfileMainScreen} />
+    <ProfileStack.Screen name="EditProfile" component={EditProfileScreen} />
   </ProfileStack.Navigator>
 );
 
