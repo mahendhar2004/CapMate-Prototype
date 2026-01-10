@@ -14,6 +14,7 @@ import {
 } from '@types/product.types';
 import { ApiResponse, PaginatedResponse } from '@types/api.types';
 import { MOCK_PRODUCTS, getMockProductById } from '@mock/data/products';
+import { sortProducts } from '@utils/feedAlgorithm';
 
 // Simulated network delay
 const MOCK_DELAY = 600;
@@ -67,10 +68,9 @@ export const mockGetProducts = async (
       }
     }
 
-    // Sort by created date (newest first)
-    filteredProducts.sort(
-      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    );
+    // Sort products based on filter option (default: priority algorithm)
+    const sortBy = filters?.sortBy || 'priority';
+    filteredProducts = sortProducts(filteredProducts, sortBy);
 
     // Paginate
     const startIndex = (page - 1) * pageSize;

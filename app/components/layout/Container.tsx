@@ -5,7 +5,7 @@
 
 import React from 'react';
 import { View, StyleSheet, ViewStyle, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, spacing } from '@theme/index';
 
 interface ContainerProps {
@@ -15,6 +15,7 @@ interface ContainerProps {
   withPadding?: boolean;
   keyboardAvoiding?: boolean;
   edges?: ('top' | 'bottom' | 'left' | 'right')[];
+  withTabBarPadding?: boolean;
 }
 
 export const Container: React.FC<ContainerProps> = ({
@@ -23,11 +24,17 @@ export const Container: React.FC<ContainerProps> = ({
   scrollable = false,
   withPadding = true,
   keyboardAvoiding = false,
-  edges = ['top', 'bottom'],
+  edges = ['top'],
+  withTabBarPadding = true,
 }) => {
+  const insets = useSafeAreaInsets();
+  // Calculate tab bar height to add bottom padding
+  const tabBarHeight = 60 + (insets.bottom > 0 ? insets.bottom : spacing.sm);
+
   const contentStyle = [
     styles.content,
     withPadding && styles.withPadding,
+    withTabBarPadding && { paddingBottom: tabBarHeight },
     style,
   ];
 
@@ -36,7 +43,12 @@ export const Container: React.FC<ContainerProps> = ({
       return (
         <ScrollView
           style={styles.scrollView}
-          contentContainerStyle={[styles.scrollContent, withPadding && styles.withPadding, style]}
+          contentContainerStyle={[
+            styles.scrollContent,
+            withPadding && styles.withPadding,
+            withTabBarPadding && { paddingBottom: tabBarHeight },
+            style,
+          ]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >

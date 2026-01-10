@@ -3,7 +3,7 @@
  * Edit existing product listing
  */
 
-import React, { useState } from 'react';
+import React, { useState, useLayoutEffect } from 'react';
 import {
   View,
   Text,
@@ -14,6 +14,7 @@ import {
   Alert,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import { useNavigation } from '@react-navigation/native';
 import { MyListingsStackScreenProps } from '@types/navigation.types';
 import { ProductCategory, ProductCondition } from '@types/product.types';
 import { Container } from '@components/layout/Container';
@@ -38,6 +39,20 @@ interface FormState {
 const EditListingScreen: React.FC<Props> = ({ navigation, route }) => {
   const { product } = route.params;
   const { updateProduct } = useProducts();
+  const parentNavigation = useNavigation();
+
+  // Hide tab bar when this screen is focused
+  useLayoutEffect(() => {
+    parentNavigation.getParent()?.setOptions({
+      tabBarStyle: { display: 'none' },
+    });
+
+    return () => {
+      parentNavigation.getParent()?.setOptions({
+        tabBarStyle: undefined,
+      });
+    };
+  }, [parentNavigation]);
 
   const [form, setForm] = useState<FormState>({
     title: product.title,

@@ -1,6 +1,6 @@
 /**
  * Home List Screen
- * Main product feed with filters
+ * Main product feed with single column layout
  */
 
 import React, { useEffect, useState, useCallback } from 'react';
@@ -14,8 +14,9 @@ import {
   Modal,
   ScrollView,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { HomeStackScreenProps } from '@types/navigation.types';
-import { Product, ProductCategory, ProductFilters } from '@types/product.types';
+import { Product, ProductCategory, ProductFilters, SortOption } from '@types/product.types';
 import { Container } from '@components/layout/Container';
 import { ProductCard, Button, Badge, Input } from '@components/common';
 import { Loading, EmptyState } from '@components/feedback';
@@ -23,11 +24,17 @@ import { useAuth } from '@context/AuthContext';
 import { useProducts } from '@context/ProductContext';
 import { colors, typography, spacing, borderRadius } from '@theme/index';
 import { CATEGORIES, PRICE_RANGE } from '@constants/index';
+import { SORT_OPTIONS, getSortOptionLabel } from '@utils/feedAlgorithm';
 
 type Props = HomeStackScreenProps<'HomeList'>;
 
+// Tab bar height calculation helper
+const TAB_BAR_BASE_HEIGHT = 60;
+
 const HomeListScreen: React.FC<Props> = ({ navigation }) => {
   const { user } = useAuth();
+  const insets = useSafeAreaInsets();
+  const tabBarHeight = TAB_BAR_BASE_HEIGHT + (insets.bottom > 0 ? insets.bottom : spacing.sm);
   const {
     products,
     filters,
@@ -107,11 +114,15 @@ const HomeListScreen: React.FC<Props> = ({ navigation }) => {
   const hasActiveFilters =
     filters.category || filters.minPrice || filters.maxPrice || filters.search;
 
-  // Render product item
+  // Render product item - Single column with stagger animation
   const renderProductItem = ({ item, index }: { item: Product; index: number }) => (
-    <View style={[styles.productItem, index % 2 === 0 ? styles.productItemLeft : styles.productItemRight]}>
-      <ProductCard product={item} onPress={handleProductPress} variant="grid" />
-    </View>
+    <ProductCard
+      product={item}
+      onPress={handleProductPress}
+      variant="default"
+      index={index}
+      allProducts={products}
+    />
   );
 
   // Render header
@@ -132,7 +143,7 @@ const HomeListScreen: React.FC<Props> = ({ navigation }) => {
           style={[styles.filterButton, hasActiveFilters && styles.filterButtonActive]}
           onPress={handleOpenFilters}
         >
-          <Text style={styles.filterIcon}>⚙️</Text>
+          <Text style={[styles.filterIcon, hasActiveFilters && styles.filterIconActive]}>≡</Text>
         </TouchableOpacity>
       </View>
 
@@ -158,9 +169,17 @@ const HomeListScreen: React.FC<Props> = ({ navigation }) => {
         </View>
       )}
 
-      <Text style={styles.resultsText}>
-        {products.length} items in {user?.collegeName || 'your college'}
-      </Text>
+      <View style={styles.resultsRow}>
+        <Text style={styles.resultsText}>
+          {products.length} items available
+        </Text>
+        <TouchableOpacity style={styles.sortIndicator} onPress={handleOpenFilters}>
+          <Text style={styles.sortIndicatorText}>
+            {getSortOptionLabel(filters.sortBy || 'priority')}
+          </Text>
+          <Text style={styles.sortIndicatorIcon}>↓</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 
@@ -188,21 +207,21 @@ const HomeListScreen: React.FC<Props> = ({ navigation }) => {
   };
 
   return (
-    <Container withPadding={false}>
+    <Container withPadding={false} withTabBarPadding={false}>
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.logo}>CAPMATE</Text>
-        <Text style={styles.collegeTag}>{user?.collegeName || 'Your College'}</Text>
+        <View style={styles.collegeBadge}>
+          <Text style={styles.collegeTag}>{user?.collegeName || 'Your College'}</Text>
+        </View>
       </View>
 
-      {/* Product List */}
+      {/* Product List - Single Column */}
       <FlatList
         data={products}
         renderItem={renderProductItem}
         keyExtractor={item => item.id}
-        numColumns={2}
-        columnWrapperStyle={styles.row}
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={[styles.listContent, { paddingBottom: tabBarHeight + spacing.lg }]}
         ListHeaderComponent={renderHeader}
         ListFooterComponent={renderFooter}
         ListEmptyComponent={renderEmpty}
@@ -229,11 +248,35 @@ const HomeListScreen: React.FC<Props> = ({ navigation }) => {
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>Filters</Text>
             <TouchableOpacity onPress={() => setShowFilters(false)}>
-              <Text style={styles.closeButton}>✕</Text>
+              <Text style={styles.closeButton}>×</Text>
             </TouchableOpacity>
           </View>
 
           <ScrollView style={styles.modalContent}>
+            {/* Sort By */}
+            <Text style={styles.filterSectionTitle}>Sort By</Text>
+            <View style={styles.sortOptions}>
+              {SORT_OPTIONS.map(option => (
+                <TouchableOpacity
+                  key={option.value}
+                  style={[
+                    styles.sortButton,
+                    (tempFilters.sortBy || 'priority') === option.value && styles.sortButtonSelected,
+                  ]}
+                  onPress={() => setTempFilters(prev => ({ ...prev, sortBy: option.value }))}
+                >
+                  <Text
+                    style={[
+                      styles.sortLabel,
+                      (tempFilters.sortBy || 'priority') === option.value && styles.sortLabelSelected,
+                    ]}
+                  >
+                    {option.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
             {/* Categories */}
             <Text style={styles.filterSectionTitle}>Category</Text>
             <View style={styles.categoryGrid}>
@@ -318,23 +361,27 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     borderBottomWidth: 1,
     borderBottomColor: colors.borderLight,
+    backgroundColor: colors.surface,
   },
   logo: {
     ...typography.h4,
     color: colors.primary,
     fontWeight: '800',
-    letterSpacing: 1,
+    letterSpacing: 2,
   },
-  collegeTag: {
-    ...typography.labelSmall,
-    color: colors.textSecondary,
+  collegeBadge: {
     backgroundColor: colors.primaryFaded,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
     borderRadius: borderRadius.full,
   },
+  collegeTag: {
+    ...typography.labelSmall,
+    color: colors.primary,
+    fontWeight: '600',
+  },
   listContent: {
-    paddingBottom: spacing['2xl'],
+    // paddingBottom handled dynamically with tab bar height
   },
   listHeader: {
     paddingHorizontal: spacing.lg,
@@ -343,7 +390,7 @@ const styles = StyleSheet.create({
   },
   searchRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     gap: spacing.sm,
   },
   searchContainer: {
@@ -361,14 +408,18 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: spacing.sm + 18, // Align with input
   },
   filterButtonActive: {
     borderColor: colors.primary,
     backgroundColor: colors.primaryFaded,
   },
   filterIcon: {
-    fontSize: 20,
+    fontSize: 18,
+    color: colors.textSecondary,
+    fontWeight: '600',
+  },
+  filterIconActive: {
+    color: colors.primary,
   },
   activeFilters: {
     flexDirection: 'row',
@@ -381,23 +432,29 @@ const styles = StyleSheet.create({
     ...typography.label,
     color: colors.primary,
   },
+  resultsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: spacing.md,
+  },
   resultsText: {
     ...typography.bodySmall,
     color: colors.textSecondary,
-    marginTop: spacing.md,
   },
-  row: {
-    paddingHorizontal: spacing.lg,
-    justifyContent: 'space-between',
+  sortIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
   },
-  productItem: {
-    marginBottom: spacing.lg,
+  sortIndicatorText: {
+    ...typography.bodySmall,
+    color: colors.primary,
+    fontWeight: '500',
   },
-  productItemLeft: {
-    marginRight: spacing.sm,
-  },
-  productItemRight: {
-    marginLeft: spacing.sm,
+  sortIndicatorIcon: {
+    fontSize: 12,
+    color: colors.primary,
   },
   // Modal styles
   modalContainer: {
@@ -418,8 +475,9 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
   closeButton: {
-    fontSize: 24,
+    fontSize: 28,
     color: colors.textSecondary,
+    fontWeight: '300',
   },
   modalContent: {
     flex: 1,
@@ -431,6 +489,30 @@ const styles = StyleSheet.create({
     color: colors.text,
     marginBottom: spacing.md,
     marginTop: spacing.lg,
+  },
+  sortOptions: {
+    gap: spacing.sm,
+  },
+  sortButton: {
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    borderRadius: borderRadius.lg,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    marginBottom: spacing.sm,
+  },
+  sortButtonSelected: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primaryFaded,
+  },
+  sortLabel: {
+    ...typography.body,
+    color: colors.textSecondary,
+  },
+  sortLabelSelected: {
+    color: colors.primary,
+    fontWeight: '600',
   },
   categoryGrid: {
     flexDirection: 'row',

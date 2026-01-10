@@ -3,7 +3,7 @@
  * Allows users to edit their profile information
  */
 
-import React, { useState } from 'react';
+import React, { useState, useLayoutEffect } from 'react';
 import {
   View,
   Text,
@@ -14,6 +14,7 @@ import {
   Alert,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import { useNavigation } from '@react-navigation/native';
 import { ProfileStackScreenProps } from '@types/navigation.types';
 import { Container } from '@components/layout/Container';
 import { Header } from '@components/layout/Header';
@@ -27,6 +28,20 @@ type Props = ProfileStackScreenProps<'EditProfile'>;
 const EditProfileScreen: React.FC<Props> = ({ navigation }) => {
   const { user, updateProfile, isLoading } = useAuth();
   const { showToast } = useToast();
+  const parentNavigation = useNavigation();
+
+  // Hide tab bar when this screen is focused
+  useLayoutEffect(() => {
+    parentNavigation.getParent()?.setOptions({
+      tabBarStyle: { display: 'none' },
+    });
+
+    return () => {
+      parentNavigation.getParent()?.setOptions({
+        tabBarStyle: undefined,
+      });
+    };
+  }, [parentNavigation]);
 
   const [name, setName] = useState(user?.name || '');
   const [phone, setPhone] = useState(user?.phone || '');

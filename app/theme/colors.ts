@@ -52,6 +52,7 @@ export const colors = {
   error: '#EF4444',
   errorLight: '#FEE2E2',
   errorDark: '#DC2626',
+  errorFaded: '#FEF2F2',
   info: '#3B82F6',
   infoLight: '#DBEAFE',
   infoDark: '#2563EB',

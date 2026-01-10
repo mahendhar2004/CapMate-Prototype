@@ -31,6 +31,7 @@ export interface Product {
   sellerAvatar?: string;
   collegeId: string;
   collegeName: string;
+  hostelName?: string;
   status: ListingStatus;
   createdAt: string;
   updatedAt: string;
@@ -50,12 +51,15 @@ export interface UpdateProductInput extends Partial<CreateProductInput> {
   id: string;
 }
 
+export type SortOption = 'priority' | 'newest' | 'price_low' | 'price_high' | 'popular';
+
 export interface ProductFilters {
   category?: ProductCategory;
   minPrice?: number;
   maxPrice?: number;
   condition?: ProductCondition;
   search?: string;
+  sortBy?: SortOption;
 }
 
 export interface ProductListState {

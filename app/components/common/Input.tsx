@@ -3,7 +3,7 @@
  * Reusable text input with validation support
  */
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   TextInput,
@@ -12,8 +12,10 @@ import {
   TextInputProps,
   TouchableOpacity,
   ViewStyle,
+  Animated,
 } from 'react-native';
 import { colors, typography, spacing, borderRadius } from '@theme/index';
+import { TIMING, EASING } from '@utils/animations';
 
 interface InputProps extends Omit<TextInputProps, 'style'> {
   label?: string;
@@ -42,19 +44,56 @@ export const Input: React.FC<InputProps> = ({
 }) => {
   const [isFocused, setIsFocused] = useState(false);
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+  const borderAnim = useRef(new Animated.Value(0)).current;
+  const scaleAnim = useRef(new Animated.Value(1)).current;
 
   const hasError = !!error;
   const isSecure = secureTextEntry && !isPasswordVisible;
 
+  // Animate border on focus
+  useEffect(() => {
+    Animated.timing(borderAnim, {
+      toValue: isFocused ? 1 : 0,
+      duration: TIMING.fast,
+      easing: EASING.smooth,
+      useNativeDriver: false,
+    }).start();
+  }, [isFocused]);
+
+  // Subtle scale animation on focus
+  const handleFocus = () => {
+    setIsFocused(true);
+    Animated.spring(scaleAnim, {
+      toValue: 1.01,
+      useNativeDriver: true,
+      tension: 300,
+      friction: 15,
+    }).start();
+  };
+
+  const handleBlur = () => {
+    setIsFocused(false);
+    Animated.spring(scaleAnim, {
+      toValue: 1,
+      useNativeDriver: true,
+      tension: 300,
+      friction: 15,
+    }).start();
+  };
+
+  const animatedBorderColor = borderAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [hasError ? colors.error : colors.border, hasError ? colors.error : colors.primary],
+  });
+
   const inputContainerStyles = [
     styles.inputContainer,
-    isFocused && styles.inputContainerFocused,
     hasError && styles.inputContainerError,
     textInputProps.editable === false && styles.inputContainerDisabled,
   ];
 
   return (
-    <View style={[styles.container, containerStyle]}>
+    <Animated.View style={[styles.container, containerStyle, { transform: [{ scale: scaleAnim }] }]}>
       {label && (
         <Text style={styles.label}>
           {label}
@@ -62,7 +101,7 @@ export const Input: React.FC<InputProps> = ({
         </Text>
       )}
 
-      <View style={inputContainerStyles}>
+      <Animated.View style={[inputContainerStyles, { borderColor: animatedBorderColor }]}>
         {leftIcon && <View style={styles.iconLeft}>{leftIcon}</View>}
 
         <TextInput
@@ -73,8 +112,8 @@ export const Input: React.FC<InputProps> = ({
             inputStyle,
           ]}
           placeholderTextColor={colors.textTertiary}
-          onFocus={() => setIsFocused(true)}
-          onBlur={() => setIsFocused(false)}
+          onFocus={handleFocus}
+          onBlur={handleBlur}
           secureTextEntry={isSecure}
           {...textInputProps}
         />
@@ -89,12 +128,12 @@ export const Input: React.FC<InputProps> = ({
         )}
 
         {rightIcon && !showPasswordToggle && <View style={styles.iconRight}>{rightIcon}</View>}
-      </View>
+      </Animated.View>
 
       {(error || hint) && (
         <Text style={[styles.helperText, hasError && styles.errorText]}>{error || hint}</Text>
       )}
-    </View>
+    </Animated.View>
   );
 };
 
@@ -115,15 +154,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: colors.surface,
     borderWidth: 1.5,
-    borderColor: colors.border,
     borderRadius: borderRadius.lg,
     minHeight: 48,
   },
-  inputContainerFocused: {
-    borderColor: colors.primary,
-  },
   inputContainerError: {
-    borderColor: colors.error,
+    // Error state handled by animated border
   },
   inputContainerDisabled: {
     backgroundColor: colors.borderLight,

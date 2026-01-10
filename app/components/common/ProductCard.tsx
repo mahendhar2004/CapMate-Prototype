@@ -1,9 +1,9 @@
 /**
  * ProductCard Component
- * Display product information in a card format - Enhanced design
+ * Display product information in a card format - Single column layout
  */
 
-import React, { useRef } from 'react';
+import React, { useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -17,31 +17,70 @@ import { colors, typography, spacing, borderRadius, shadows } from '@theme/index
 import { Product } from '@types/product.types';
 import { CategoryBadge } from './Badge';
 import { formatPrice, formatRelativeTime } from '@utils/formatters';
+import { TIMING, EASING } from '@utils/animations';
+import { getProductTags, ProductTag } from '@utils/helpers';
 
 interface ProductCardProps {
   product: Product;
   onPress: (product: Product) => void;
-  variant?: 'grid' | 'list' | 'featured';
+  variant?: 'default' | 'compact';
+  index?: number; // For staggered animations
+  allProducts?: Product[]; // For calculating relative tags like "most viewed"
 }
 
+// Product Tag Badge Component
+const ProductTagBadge: React.FC<{ tag: ProductTag }> = ({ tag }) => (
+  <View style={[styles.tagBadge, { backgroundColor: tag.bgColor }]}>
+    {tag.icon && <Text style={styles.tagIcon}>{tag.icon}</Text>}
+    <Text style={[styles.tagText, { color: tag.color }]}>{tag.label}</Text>
+  </View>
+);
+
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const GRID_CARD_WIDTH = (SCREEN_WIDTH - spacing.lg * 3) / 2;
+const CARD_WIDTH = SCREEN_WIDTH - spacing.lg * 2;
+const IMAGE_HEIGHT = 200;
 
 export const ProductCard: React.FC<ProductCardProps> = ({
   product,
   onPress,
-  variant = 'grid',
+  variant = 'default',
+  index = 0,
+  allProducts,
 }) => {
   const scaleAnim = useRef(new Animated.Value(1)).current;
-  const isGrid = variant === 'grid';
-  const isFeatured = variant === 'featured';
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const translateYAnim = useRef(new Animated.Value(20)).current;
+
+  // Calculate tags for this product
+  const tags = getProductTags(product, allProducts);
+
+  // Fade in on mount with stagger based on index
+  useEffect(() => {
+    const delay = Math.min(index * TIMING.stagger, 300); // Cap delay at 300ms
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: TIMING.normal,
+        delay,
+        easing: EASING.smooth,
+        useNativeDriver: true,
+      }),
+      Animated.timing(translateYAnim, {
+        toValue: 0,
+        duration: TIMING.normal,
+        delay,
+        easing: EASING.decelerate,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
 
   const handlePressIn = () => {
     Animated.spring(scaleAnim, {
       toValue: 0.97,
       useNativeDriver: true,
-      tension: 300,
-      friction: 10,
+      tension: 400,
+      friction: 12,
     }).start();
   };
 
@@ -49,25 +88,29 @@ export const ProductCard: React.FC<ProductCardProps> = ({
     Animated.spring(scaleAnim, {
       toValue: 1,
       useNativeDriver: true,
-      tension: 300,
-      friction: 10,
+      tension: 400,
+      friction: 12,
     }).start();
   };
 
-  const renderGridCard = () => (
-    <View style={styles.gridContainer}>
+  const renderDefaultCard = () => (
+    <View style={styles.container}>
       {/* Image Section */}
-      <View style={styles.gridImageContainer}>
+      <View style={styles.imageContainer}>
         <Image
-          source={{ uri: product.images[0] || 'https://picsum.photos/300/300' }}
-          style={styles.gridImage}
+          source={{ uri: product.images[0] || 'https://picsum.photos/400/300' }}
+          style={styles.image}
           resizeMode="cover"
         />
 
-        {/* Category Badge */}
-        <View style={styles.categoryOverlay}>
-          <CategoryBadge category={product.category} size="sm" />
-        </View>
+        {/* Product Tags */}
+        {tags.length > 0 && product.status !== 'sold' && (
+          <View style={styles.tagsContainer}>
+            {tags.map((tag) => (
+              <ProductTagBadge key={tag.type} tag={tag} />
+            ))}
+          </View>
+        )}
 
         {/* Sold Overlay */}
         {product.status === 'sold' && (
@@ -87,35 +130,52 @@ export const ProductCard: React.FC<ProductCardProps> = ({
       </View>
 
       {/* Content Section */}
-      <View style={styles.gridContent}>
-        <Text style={styles.gridTitle} numberOfLines={2}>
+      <View style={styles.content}>
+        {/* Category Badge - Now in content section */}
+        <View style={styles.categoryRow}>
+          <CategoryBadge category={product.category} size="sm" />
+          <Text style={styles.time}>{formatRelativeTime(product.createdAt)}</Text>
+        </View>
+
+        {/* Title */}
+        <Text style={styles.title} numberOfLines={2}>
           {product.title}
         </Text>
 
-        <Text style={styles.gridPrice}>{formatPrice(product.price)}</Text>
+        {/* Price */}
+        <Text style={styles.price}>{formatPrice(product.price)}</Text>
 
-        <View style={styles.gridFooter}>
-          <View style={styles.sellerInfo}>
-            <View style={styles.sellerDot} />
-            <Text style={styles.gridCollege} numberOfLines={1}>
-              {product.collegeName}
+        {/* Footer with hostel */}
+        <View style={styles.footer}>
+          <View style={styles.locationInfo}>
+            <Text style={styles.locationIcon}>📍</Text>
+            <Text style={styles.hostelName} numberOfLines={1}>
+              {product.hostelName || 'Campus'}
             </Text>
           </View>
-          <Text style={styles.gridTime}>{formatRelativeTime(product.createdAt)}</Text>
         </View>
       </View>
     </View>
   );
 
-  const renderListCard = () => (
-    <View style={styles.listContainer}>
+  const renderCompactCard = () => (
+    <View style={styles.compactContainer}>
       {/* Image Section */}
-      <View style={styles.listImageContainer}>
+      <View style={styles.compactImageContainer}>
         <Image
           source={{ uri: product.images[0] || 'https://picsum.photos/200' }}
-          style={styles.listImage}
+          style={styles.compactImage}
           resizeMode="cover"
         />
+        {/* Compact Tags - show only first tag */}
+        {tags.length > 0 && product.status !== 'sold' && (
+          <View style={styles.compactTagContainer}>
+            <View style={[styles.compactTagBadge, { backgroundColor: tags[0].bgColor }]}>
+              {tags[0].icon && <Text style={styles.compactTagIcon}>{tags[0].icon}</Text>}
+              <Text style={[styles.compactTagText, { color: tags[0].color }]}>{tags[0].label}</Text>
+            </View>
+          </View>
+        )}
         {product.status === 'sold' && (
           <View style={styles.soldOverlaySmall}>
             <Text style={styles.soldTextSmall}>SOLD</Text>
@@ -124,294 +184,119 @@ export const ProductCard: React.FC<ProductCardProps> = ({
       </View>
 
       {/* Content Section */}
-      <View style={styles.listContent}>
+      <View style={styles.compactContent}>
         <CategoryBadge category={product.category} size="sm" />
 
-        <Text style={styles.listTitle} numberOfLines={1}>
+        <Text style={styles.compactTitle} numberOfLines={2}>
           {product.title}
         </Text>
 
-        <Text style={styles.listDescription} numberOfLines={2}>
-          {product.description}
-        </Text>
-
-        <View style={styles.listFooter}>
-          <Text style={styles.listPrice}>{formatPrice(product.price)}</Text>
-          <Text style={styles.listTime}>{formatRelativeTime(product.createdAt)}</Text>
-        </View>
-      </View>
-    </View>
-  );
-
-  const renderFeaturedCard = () => (
-    <View style={styles.featuredContainer}>
-      {/* Full Width Image */}
-      <View style={styles.featuredImageContainer}>
-        <Image
-          source={{ uri: product.images[0] || 'https://picsum.photos/400/300' }}
-          style={styles.featuredImage}
-          resizeMode="cover"
-        />
-
-        {/* Gradient Overlay */}
-        <View style={styles.featuredGradient} />
-
-        {/* Category Badge */}
-        <View style={styles.featuredCategoryOverlay}>
-          <CategoryBadge category={product.category} size="md" />
-        </View>
-
-        {/* Sold Overlay */}
-        {product.status === 'sold' && (
-          <View style={styles.soldOverlay}>
-            <View style={styles.soldBadgeLarge}>
-              <Text style={styles.soldTextLarge}>SOLD</Text>
-            </View>
+        <View style={styles.compactFooter}>
+          <Text style={styles.compactPrice}>{formatPrice(product.price)}</Text>
+          <View style={styles.compactMeta}>
+            <Text style={styles.compactHostel}>{product.hostelName || 'Campus'}</Text>
+            <Text style={styles.compactDot}>·</Text>
+            <Text style={styles.compactTime}>{formatRelativeTime(product.createdAt)}</Text>
           </View>
-        )}
-      </View>
-
-      {/* Content Section */}
-      <View style={styles.featuredContent}>
-        <View style={styles.featuredHeader}>
-          <Text style={styles.featuredTitle} numberOfLines={2}>
-            {product.title}
-          </Text>
-          <Text style={styles.featuredPrice}>{formatPrice(product.price)}</Text>
-        </View>
-
-        <Text style={styles.featuredDescription} numberOfLines={2}>
-          {product.description}
-        </Text>
-
-        <View style={styles.featuredFooter}>
-          <View style={styles.featuredSeller}>
-            <View style={styles.featuredAvatar}>
-              <Text style={styles.featuredAvatarText}>
-                {product.sellerName?.charAt(0) || 'S'}
-              </Text>
-            </View>
-            <View>
-              <Text style={styles.featuredSellerName}>{product.sellerName}</Text>
-              <Text style={styles.featuredCollege}>{product.collegeName}</Text>
-            </View>
-          </View>
-          <Text style={styles.featuredTime}>{formatRelativeTime(product.createdAt)}</Text>
         </View>
       </View>
     </View>
   );
 
   return (
-    <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
+    <Animated.View
+      style={[
+        styles.wrapper,
+        {
+          opacity: fadeAnim,
+          transform: [
+            { scale: scaleAnim },
+            { translateY: translateYAnim },
+          ],
+        },
+      ]}
+    >
       <Pressable
         onPress={() => onPress(product)}
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
         style={({ pressed }) => [pressed && styles.pressed]}
       >
-        {isGrid && renderGridCard()}
-        {variant === 'list' && renderListCard()}
-        {isFeatured && renderFeaturedCard()}
+        {variant === 'default' && renderDefaultCard()}
+        {variant === 'compact' && renderCompactCard()}
       </Pressable>
     </Animated.View>
   );
 };
 
 const styles = StyleSheet.create({
+  wrapper: {
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.lg,
+  },
   pressed: {
     opacity: 0.95,
   },
 
-  // Grid Card Styles
-  gridContainer: {
-    width: GRID_CARD_WIDTH,
+  // Default Card Styles (Full Width)
+  container: {
+    width: CARD_WIDTH,
     backgroundColor: colors.surface,
     borderRadius: borderRadius.xl,
     overflow: 'hidden',
     ...shadows.md,
   },
-  gridImageContainer: {
-    height: GRID_CARD_WIDTH,
+  imageContainer: {
+    height: IMAGE_HEIGHT,
     backgroundColor: colors.skeleton,
     position: 'relative',
   },
-  gridImage: {
+  image: {
     width: '100%',
     height: '100%',
   },
-  categoryOverlay: {
-    position: 'absolute',
-    top: spacing.sm,
-    left: spacing.sm,
-  },
   imageCountBadge: {
     position: 'absolute',
-    bottom: spacing.sm,
-    right: spacing.sm,
+    bottom: spacing.md,
+    right: spacing.md,
     backgroundColor: 'rgba(0, 0, 0, 0.6)',
     borderRadius: borderRadius.full,
-    width: 24,
-    height: 24,
+    width: 28,
+    height: 28,
     justifyContent: 'center',
     alignItems: 'center',
   },
   imageCountText: {
-    ...typography.caption,
+    ...typography.labelSmall,
     color: colors.textInverse,
     fontWeight: '600',
   },
-  gridContent: {
-    padding: spacing.md,
-  },
-  gridTitle: {
-    ...typography.label,
-    color: colors.text,
-    marginBottom: spacing.xs,
-    lineHeight: 20,
-  },
-  gridPrice: {
-    ...typography.h4,
-    color: colors.primary,
-    fontWeight: '700',
-    marginBottom: spacing.sm,
-  },
-  gridFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  sellerInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-    marginRight: spacing.sm,
-  },
-  sellerDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: colors.success,
-    marginRight: spacing.xs,
-  },
-  gridCollege: {
-    ...typography.caption,
-    color: colors.textTertiary,
-    flex: 1,
-  },
-  gridTime: {
-    ...typography.caption,
-    color: colors.textTertiary,
-  },
-
-  // List Card Styles
-  listContainer: {
-    flexDirection: 'row',
-    backgroundColor: colors.surface,
-    borderRadius: borderRadius.xl,
-    overflow: 'hidden',
-    marginHorizontal: spacing.lg,
-    marginBottom: spacing.md,
-    ...shadows.sm,
-  },
-  listImageContainer: {
-    width: 120,
-    height: 120,
-    backgroundColor: colors.skeleton,
-    position: 'relative',
-  },
-  listImage: {
-    width: '100%',
-    height: '100%',
-  },
-  listContent: {
-    flex: 1,
-    padding: spacing.md,
-    justifyContent: 'space-between',
-  },
-  listTitle: {
-    ...typography.label,
-    color: colors.text,
-    marginTop: spacing.xs,
-  },
-  listDescription: {
-    ...typography.bodySmall,
-    color: colors.textSecondary,
-    marginTop: spacing.xs,
-  },
-  listFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: spacing.sm,
-  },
-  listPrice: {
-    ...typography.h4,
-    color: colors.primary,
-    fontWeight: '700',
-  },
-  listTime: {
-    ...typography.caption,
-    color: colors.textTertiary,
-  },
-
-  // Featured Card Styles
-  featuredContainer: {
-    backgroundColor: colors.surface,
-    borderRadius: borderRadius['2xl'],
-    overflow: 'hidden',
-    marginHorizontal: spacing.lg,
-    marginBottom: spacing.lg,
-    ...shadows.lg,
-  },
-  featuredImageContainer: {
-    height: 200,
-    backgroundColor: colors.skeleton,
-    position: 'relative',
-  },
-  featuredImage: {
-    width: '100%',
-    height: '100%',
-  },
-  featuredGradient: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 80,
-    backgroundColor: 'transparent',
-  },
-  featuredCategoryOverlay: {
-    position: 'absolute',
-    top: spacing.md,
-    left: spacing.md,
-  },
-  featuredContent: {
+  content: {
     padding: spacing.lg,
   },
-  featuredHeader: {
+  categoryRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     marginBottom: spacing.sm,
   },
-  featuredTitle: {
-    ...typography.h4,
-    color: colors.text,
-    flex: 1,
-    marginRight: spacing.md,
-  },
-  featuredPrice: {
+  price: {
     ...typography.h3,
     color: colors.primary,
     fontWeight: '700',
-  },
-  featuredDescription: {
-    ...typography.body,
-    color: colors.textSecondary,
     marginBottom: spacing.md,
   },
-  featuredFooter: {
+  time: {
+    ...typography.caption,
+    color: colors.textTertiary,
+  },
+  title: {
+    ...typography.body,
+    color: colors.text,
+    marginBottom: spacing.sm,
+    lineHeight: 22,
+  },
+  footer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -419,33 +304,71 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.borderLight,
   },
-  featuredSeller: {
+  locationInfo: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: spacing.xs,
   },
-  featuredAvatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: colors.primaryFaded,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: spacing.sm,
+  locationIcon: {
+    fontSize: 12,
   },
-  featuredAvatarText: {
-    ...typography.label,
-    color: colors.primary,
-    fontWeight: '600',
+  hostelName: {
+    ...typography.bodySmall,
+    color: colors.textSecondary,
   },
-  featuredSellerName: {
+
+  // Compact Card Styles
+  compactContainer: {
+    flexDirection: 'row',
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.xl,
+    overflow: 'hidden',
+    ...shadows.sm,
+  },
+  compactImageContainer: {
+    width: 120,
+    height: 120,
+    backgroundColor: colors.skeleton,
+    position: 'relative',
+  },
+  compactImage: {
+    width: '100%',
+    height: '100%',
+  },
+  compactContent: {
+    flex: 1,
+    padding: spacing.md,
+    justifyContent: 'space-between',
+  },
+  compactTitle: {
     ...typography.label,
     color: colors.text,
+    marginTop: spacing.xs,
+    lineHeight: 20,
   },
-  featuredCollege: {
+  compactFooter: {
+    marginTop: spacing.sm,
+  },
+  compactPrice: {
+    ...typography.h4,
+    color: colors.primary,
+    fontWeight: '700',
+    marginBottom: spacing.xs,
+  },
+  compactMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  compactHostel: {
     ...typography.caption,
     color: colors.textTertiary,
   },
-  featuredTime: {
+  compactDot: {
+    ...typography.caption,
+    color: colors.textTertiary,
+  },
+  compactTime: {
     ...typography.caption,
     color: colors.textTertiary,
   },
@@ -459,8 +382,8 @@ const styles = StyleSheet.create({
   },
   soldBadge: {
     backgroundColor: colors.error,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
     borderRadius: borderRadius.md,
   },
   soldText: {
@@ -481,17 +404,53 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 1,
   },
-  soldBadgeLarge: {
-    backgroundColor: colors.error,
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.sm,
-    borderRadius: borderRadius.lg,
+
+  // Product Tags Styles
+  tagsContainer: {
+    position: 'absolute',
+    top: spacing.md,
+    left: spacing.md,
+    flexDirection: 'row',
+    gap: spacing.xs,
   },
-  soldTextLarge: {
-    ...typography.h4,
-    color: colors.textInverse,
+  tagBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.md,
+    gap: 4,
+  },
+  tagIcon: {
+    fontSize: 10,
+  },
+  tagText: {
+    fontSize: 10,
     fontWeight: '700',
-    letterSpacing: 2,
+    letterSpacing: 0.5,
+  },
+
+  // Compact Tag Styles
+  compactTagContainer: {
+    position: 'absolute',
+    top: spacing.xs,
+    left: spacing.xs,
+  },
+  compactTagBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.xs + 2,
+    paddingVertical: 2,
+    borderRadius: borderRadius.sm,
+    gap: 2,
+  },
+  compactTagIcon: {
+    fontSize: 8,
+  },
+  compactTagText: {
+    fontSize: 8,
+    fontWeight: '700',
+    letterSpacing: 0.3,
   },
 });
 

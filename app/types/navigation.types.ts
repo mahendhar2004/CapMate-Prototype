@@ -41,11 +41,18 @@ export type ProfileStackParamList = {
   EditProfile: undefined;
 };
 
+// Chat Stack
+export type ChatStackParamList = {
+  ChatList: undefined;
+  ChatDetail: { conversationId: string; participantName: string };
+};
+
 // Main Tab Navigator
 export type MainTabParamList = {
   Home: NavigatorScreenParams<HomeStackParamList>;
   Create: NavigatorScreenParams<CreateListingStackParamList>;
   MyListings: NavigatorScreenParams<MyListingsStackParamList>;
+  Chat: NavigatorScreenParams<ChatStackParamList>;
   Profile: NavigatorScreenParams<ProfileStackParamList>;
 };
 
@@ -74,6 +81,11 @@ export type MyListingsStackScreenProps<T extends keyof MyListingsStackParamList>
 
 export type ProfileStackScreenProps<T extends keyof ProfileStackParamList> = NativeStackScreenProps<
   ProfileStackParamList,
+  T
+>;
+
+export type ChatStackScreenProps<T extends keyof ChatStackParamList> = NativeStackScreenProps<
+  ChatStackParamList,
   T
 >;
 

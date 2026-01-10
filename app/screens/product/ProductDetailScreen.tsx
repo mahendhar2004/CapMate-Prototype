@@ -3,7 +3,7 @@
  * Full product information with image gallery and seller contact
  */
 
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useLayoutEffect } from 'react';
 import {
   View,
   Text,
@@ -11,11 +11,11 @@ import {
   ScrollView,
   Dimensions,
   TouchableOpacity,
-  Alert,
-  Linking,
   Animated,
   Share,
+  Alert,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { HomeStackScreenProps } from '@types/navigation.types';
 import { Product } from '@types/product.types';
 import { Container } from '@components/layout/Container';
@@ -23,10 +23,12 @@ import { Header } from '@components/layout/Header';
 import { Button, Avatar, Badge, CategoryBadge, Card, ImageViewer } from '@components/common';
 import { Loading } from '@components/feedback';
 import { productService } from '@services/product.service';
+import { chatService } from '@services/chat.service';
 import { useToast } from '@context/ToastContext';
 import { colors, typography, spacing, borderRadius, shadows } from '@theme/index';
 import { formatPrice, formatRelativeTime, formatCondition } from '@utils/formatters';
 import { getConditionBadgeVariant } from '@components/common/Badge';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type Props = HomeStackScreenProps<'ProductDetail'>;
 
@@ -36,8 +38,24 @@ const ProductDetailScreen: React.FC<Props> = ({ route, navigation }) => {
   const { productId, product: initialProduct } = route.params;
   const [product, setProduct] = useState<Product | null>(initialProduct || null);
   const [isLoading, setIsLoading] = useState(!initialProduct);
+  const [isContactingLoading, setIsContactingLoading] = useState(false);
   const { showToast } = useToast();
   const scrollY = useRef(new Animated.Value(0)).current;
+  const parentNavigation = useNavigation();
+  const insets = useSafeAreaInsets();
+
+  // Hide tab bar when this screen is focused
+  useLayoutEffect(() => {
+    parentNavigation.getParent()?.setOptions({
+      tabBarStyle: { display: 'none' },
+    });
+
+    return () => {
+      parentNavigation.getParent()?.setOptions({
+        tabBarStyle: undefined,
+      });
+    };
+  }, [parentNavigation]);
 
   useEffect(() => {
     if (!initialProduct) {
@@ -54,27 +72,39 @@ const ProductDetailScreen: React.FC<Props> = ({ route, navigation }) => {
     setIsLoading(false);
   };
 
-  const handleContactSeller = () => {
-    Alert.alert(
-      'Contact Seller',
-      `How would you like to contact ${product?.sellerName || 'the seller'}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Chat (Coming Soon)',
-          onPress: () => showToast('In-app chat coming soon!', 'info'),
-        },
-        {
-          text: 'Email',
-          onPress: () => {
-            const email = `seller@demo.com`;
-            const subject = `Interested in: ${product?.title}`;
-            const body = `Hi ${product?.sellerName},\n\nI'm interested in your listing "${product?.title}" priced at ${formatPrice(product?.price || 0)} on CAPMATE.\n\nIs it still available?\n\nThanks!`;
-            Linking.openURL(`mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`);
-          },
-        },
-      ]
-    );
+  const handleContactSeller = async () => {
+    if (!product || isContactingLoading) return;
+
+    setIsContactingLoading(true);
+    try {
+      // Get or create conversation with seller for this product
+      const response = await chatService.getOrCreateConversation(
+        product.id,
+        product.sellerId,
+        product.sellerName,
+        product.title
+      );
+
+      if (response.success && response.data) {
+        // Navigate to Chat tab and then to ChatDetail screen using parent navigation
+        const parent = parentNavigation.getParent();
+        if (parent) {
+          parent.navigate('Chat', {
+            screen: 'ChatDetail',
+            params: {
+              conversationId: response.data.id,
+              participantName: product.sellerName,
+            },
+          });
+        }
+      } else {
+        showToast('Failed to start chat. Please try again.', 'error');
+      }
+    } catch (error) {
+      showToast('Failed to start chat. Please try again.', 'error');
+    } finally {
+      setIsContactingLoading(false);
+    }
   };
 
   const handleShare = async () => {
@@ -296,22 +326,26 @@ const ProductDetailScreen: React.FC<Props> = ({ route, navigation }) => {
 
       {/* Bottom CTA */}
       {product.status === 'active' && (
-        <View style={styles.bottomBar}>
-          <View style={styles.bottomPrice}>
-            <Text style={styles.bottomPriceLabel}>Total Price</Text>
-            <Text style={styles.bottomPriceValue}>{formatPrice(product.price)}</Text>
+        <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, spacing.lg) }]}>
+          <View style={styles.bottomPriceContainer}>
+            <Text style={styles.bottomPriceLabel}>Price</Text>
+            <Text style={styles.bottomPriceValue} numberOfLines={1}>
+              {formatPrice(product.price)}
+            </Text>
           </View>
           <Button
-            title="Contact Seller"
+            title="Chat with Seller"
             onPress={handleContactSeller}
+            loading={isContactingLoading}
             size="lg"
             style={styles.contactButton}
+            leftIcon={<Text style={styles.chatIcon}>💬</Text>}
           />
         </View>
       )}
 
       {product.status === 'sold' && (
-        <View style={styles.soldBottomBar}>
+        <View style={[styles.soldBottomBar, { paddingBottom: Math.max(insets.bottom, spacing.lg) }]}>
           <Text style={styles.soldBottomText}>This item is no longer available</Text>
           <Button
             title="Browse Similar Items"
@@ -537,18 +571,22 @@ const styles = StyleSheet.create({
     right: 0,
     flexDirection: 'row',
     alignItems: 'center',
-    padding: spacing.lg,
+    paddingTop: spacing.md,
+    paddingHorizontal: spacing.lg,
     backgroundColor: colors.surface,
     borderTopWidth: 1,
     borderTopColor: colors.borderLight,
     ...shadows.xl,
+    gap: spacing.md,
   },
-  bottomPrice: {
-    flex: 0.4,
+  bottomPriceContainer: {
+    minWidth: 90,
+    flexShrink: 0,
   },
   bottomPriceLabel: {
     ...typography.caption,
     color: colors.textSecondary,
+    marginBottom: 2,
   },
   bottomPriceValue: {
     ...typography.h3,
@@ -556,7 +594,11 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   contactButton: {
-    flex: 0.6,
+    flex: 1,
+  },
+  chatIcon: {
+    fontSize: 16,
+    marginRight: spacing.xs,
   },
   soldBottomBar: {
     position: 'absolute',

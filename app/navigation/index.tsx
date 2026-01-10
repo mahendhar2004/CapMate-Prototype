@@ -4,6 +4,7 @@
  */
 
 import React from 'react';
+import { View, StyleSheet } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { StatusBar } from 'expo-status-bar';
@@ -26,10 +27,15 @@ const RootNavigation: React.FC = () => {
   }
 
   return (
-    <>
+    <View style={styles.container}>
       <StatusBar style="dark" />
       <NavigationContainer>
-        <Stack.Navigator screenOptions={{ headerShown: false }}>
+        <Stack.Navigator
+          screenOptions={{
+            headerShown: false,
+            contentStyle: { backgroundColor: colors.background },
+          }}
+        >
           {isAuthenticated ? (
             <Stack.Screen name="Main" component={MainNavigator} />
           ) : (
@@ -37,8 +43,15 @@ const RootNavigation: React.FC = () => {
           )}
         </Stack.Navigator>
       </NavigationContainer>
-    </>
+    </View>
   );
 };
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.surface,
+  },
+});
 
 export default RootNavigation;
