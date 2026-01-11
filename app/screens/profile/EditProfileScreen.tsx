@@ -165,11 +165,12 @@ const EditProfileScreen: React.FC<Props> = ({ navigation }) => {
       <Header
         title="Edit Profile"
         showBack
-        onBack={handleCancel}
-        rightAction={{
-          label: 'Save',
-          onPress: handleSave,
-        }}
+        onBackPress={handleCancel}
+        rightAction={
+          <TouchableOpacity onPress={handleSave}>
+            <Text style={styles.saveButton}>Save</Text>
+          </TouchableOpacity>
+        }
       />
 
       <ScrollView
@@ -350,6 +351,11 @@ const styles = StyleSheet.create({
   },
   cancelButton: {
     marginTop: spacing.md,
+  },
+  saveButton: {
+    ...typography.label,
+    color: colors.primary,
+    fontWeight: '600',
   },
 });
 
