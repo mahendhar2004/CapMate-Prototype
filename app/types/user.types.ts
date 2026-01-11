@@ -14,6 +14,23 @@ export interface User {
   graduationYear: number;
   createdAt: string;
   updatedAt: string;
+
+  // Onboarding data for personalization and insights
+  nickname?: string;
+  bio?: string;
+  year?: string;
+  department?: string;
+  hostel?: string;
+  interestedCategories?: string[];
+  buyingInterest?: string[];
+  sellingIntent?: 'yes' | 'maybe' | 'no';
+  budget?: 'low' | 'moderate' | 'high';
+  shoppingFrequency?: 'rarely' | 'occasionally' | 'frequently';
+  notificationPreferences?: {
+    newListings: boolean;
+    priceDrops: boolean;
+    messages: boolean;
+  };
 }
 
 export interface College {

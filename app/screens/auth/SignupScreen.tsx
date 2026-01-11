@@ -91,8 +91,8 @@ const SignupScreen: React.FC<Props> = ({ navigation }) => {
   const handleContinue = () => {
     if (!validateForm()) return;
 
-    // Navigate to college selection with form data
-    navigation.navigate('CollegeSelect', { fromSignup: true });
+    // Navigate to onboarding flow
+    navigation.navigate('Onboarding');
   };
 
   const handleLoginPress = () => {

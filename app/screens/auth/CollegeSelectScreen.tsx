@@ -63,18 +63,19 @@ const CollegeSelectScreen: React.FC<Props> = ({ navigation, route }) => {
 
     clearError();
 
-    // For prototype, create a demo signup
-    const success = await signup({
-      email: `demo.user@${selectedCollege.shortName.toLowerCase().replace(' ', '')}.ac.in`,
-      password: 'demo123',
-      name: 'Demo User',
-      collegeId: selectedCollege.id,
-      graduationYear: selectedYear,
-    });
+    // Navigate to celebration screen before completing signup
+    navigation.navigate('Celebration');
 
-    if (!success) {
-      Alert.alert('Error', error || 'Failed to complete signup');
-    }
+    // For prototype, create a demo signup in background
+    setTimeout(async () => {
+      await signup({
+        email: `demo.user@${selectedCollege.shortName.toLowerCase().replace(' ', '')}.ac.in`,
+        password: 'demo123',
+        name: 'Demo User',
+        collegeId: selectedCollege.id,
+        graduationYear: selectedYear,
+      });
+    }, 2000);
   };
 
   const renderCollegeItem = ({ item }: { item: College }) => {

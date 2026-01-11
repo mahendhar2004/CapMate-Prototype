@@ -10,9 +10,12 @@ import { Product, CreateProductInput } from './product.types';
 
 // Auth Stack
 export type AuthStackParamList = {
+  Welcome: undefined;
   Login: undefined;
   Signup: undefined;
-  CollegeSelect: { fromSignup?: boolean };
+  Onboarding: undefined;
+  CollegeSelect: { fromSignup?: boolean; onboardingData?: any };
+  Celebration: undefined;
 };
 
 // Home Stack
