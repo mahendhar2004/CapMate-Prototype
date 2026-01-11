@@ -241,28 +241,21 @@ const WelcomeScreen: React.FC<Props> = ({ navigation }) => {
 
         {/* Features Carousel */}
         <Animated.View style={[styles.featuresContainer, { opacity: fadeAnim }]}>
-          {features.map((feature, index) => (
-            <Animated.View
-              key={index}
-              style={[
-                styles.featureCard,
-                {
-                  opacity: currentSlide === index ? 1 : 0.4,
-                  transform: [
-                    {
-                      scale: currentSlide === index ? 1 : 0.9,
-                    },
-                  ],
-                },
-              ]}
-            >
-              <View style={[styles.featureIconBg, { backgroundColor: feature.color + '20' }]}>
-                <Text style={styles.featureEmoji}>{feature.emoji}</Text>
-              </View>
-              <Text style={styles.featureTitle}>{feature.title}</Text>
-              <Text style={styles.featureDescription}>{feature.description}</Text>
-            </Animated.View>
-          ))}
+          {features.map((feature, index) => {
+            if (currentSlide !== index) return null;
+            return (
+              <Animated.View
+                key={index}
+                style={styles.featureCard}
+              >
+                <View style={[styles.featureIconBg, { backgroundColor: feature.color + '20' }]}>
+                  <Text style={styles.featureEmoji}>{feature.emoji}</Text>
+                </View>
+                <Text style={styles.featureTitle}>{feature.title}</Text>
+                <Text style={styles.featureDescription}>{feature.description}</Text>
+              </Animated.View>
+            );
+          })}
         </Animated.View>
 
         {/* Pagination Dots */}
@@ -394,10 +387,11 @@ const styles = StyleSheet.create({
   featuresContainer: {
     flex: 1,
     justifyContent: 'center',
+    alignItems: 'center',
     paddingVertical: spacing['2xl'],
+    minHeight: 200,
   },
   featureCard: {
-    position: 'absolute',
     width: '100%',
     alignItems: 'center',
     paddingVertical: spacing.xl,
